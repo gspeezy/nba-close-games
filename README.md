@@ -1,1 +1,1 @@
-# nba-close-games
+A script to notify me daily if any NBA games played that day have a margin of victory under 10 points.  

@@ -1,0 +1,25 @@
+name: Check NBA Close Games
+
+on:
+  schedule:
+    - cron: '30 13 * * *'  # Runs daily at 9:30 AM ET
+  workflow_dispatch:       # Allows manual trigger
+
+jobs:
+  check-games:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install requests pytz
+
+      - name: Run NBA Margin Checker
+        run: python check_nba_margins.py

@@ -1,50 +1,49 @@
 import requests
-from datetime import datetime
-import pytz
+from datetime import datetime, timedelta
+import smtplib
+from email.mime.text import MIMEText
+import os
 
-def get_games_with_close_margins(date_str):
-    url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates={date_str}"
-    resp = requests.get(url)
-    data = resp.json()
+def fetch_games():
+    # Convert to UTC date from NZT (12-13 hours ahead)
+    today = (datetime.utcnow() - timedelta(hours=12)).strftime('%Y-%m-%d')
+    url = f"https://www.balldontlie.io/api/v1/games?start_date={today}&end_date={today}&per_page=100"
+    response = requests.get(url)
+    response.raise_for_status()
+    data = response.json()
+    return data['data']
 
-    close_games = []
-    for event in data.get("events", []):
-        competitions = event.get("competitions", [])
-        if not competitions:
-            continue
+def find_close_games(games):
+    return [
+        f"{game['home_team']['full_name']} v {game['visitor_team']['full_name']}"
+        for game in games
+        if abs(game['home_team_score'] - game['visitor_team_score']) < 10 and game['status'] == "Final"
+    ]
 
-        competitors = competitions[0].get("competitors", [])
-        if len(competitors) != 2:
-            continue
+def send_email(body):
+    user = os.environ['EMAIL_USER']
+    password = os.environ['EMAIL_PASS']
+    to_addr = os.environ['EMAIL_TO']
+    smtp_server = os.environ.get('SMTP_SERVER', 'smtp.mailersend.net')
+    smtp_port = int(os.environ.get('SMTP_PORT', '587'))
 
-        team_1 = competitors[0]["team"]["shortDisplayName"]
-        team_2 = competitors[1]["team"]["shortDisplayName"]
+    msg = MIMEText(body)
+    msg['Subject'] = 'NBA Close Games Today'
+    msg['From'] = user
+    msg['To'] = to_addr
 
-        try:
-            score_1 = int(competitors[0]["score"])
-            score_2 = int(competitors[1]["score"])
-        except (KeyError, ValueError):
-            continue  # Skip games without valid scores
-
-        margin = abs(score_1 - score_2)
-
-        if margin < 10:
-            matchup = f"{team_1} vs {team_2}"
-            close_games.append(matchup)
-
-    return close_games
+    with smtplib.SMTP(smtp_server, smtp_port) as server:
+        server.starttls()
+        server.login(user, password)
+        server.send_message(msg)
 
 def main():
-    est_now = datetime.now(pytz.timezone("US/Eastern"))
-    date_str = est_now.strftime("%Y%m%d")
-
-    close_games = get_games_with_close_margins(date_str)
+    games = fetch_games()
+    close_games = find_close_games(games)
     if close_games:
-        print("Close NBA games today (margin < 10 pts):")
-        for game in close_games:
-            print(f"- {game}")
-    else:
-        print("No close NBA games today.")
+        body = "\n".join(close_games)
+        send_email(body)
 
 if __name__ == "__main__":
     main()
+

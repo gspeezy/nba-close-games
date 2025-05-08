@@ -48,6 +48,10 @@ def send_email(body):
 
     with smtplib.SMTP(smtp_server, smtp_port) as server:
         server.starttls()
+        print("SMTP config:")
+        print(f"Server: {smtp_server}")
+        print(f"Port: {smtp_port}")
+        print(f"User: {user}")
         server.login(user, password)
         server.send_message(msg)
 

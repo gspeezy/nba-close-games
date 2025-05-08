@@ -4,14 +4,28 @@ import smtplib
 from email.mime.text import MIMEText
 import os
 
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+
 def fetch_games():
     # Convert to UTC date from NZT (12-13 hours ahead)
     today = (datetime.utcnow() - timedelta(hours=12)).strftime('%Y-%m-%d')
     url = f"https://www.balldontlie.io/api/v1/games?start_date={today}&end_date={today}&per_page=100"
-    response = requests.get(url)
-    response.raise_for_status()
-    data = response.json()
-    return data['data']
+    logging.info(f"Fetching games from API: {url}")
+    
+    try:
+        response = requests.get(url)
+        if response.status_code == 404:
+            logging.error(f"API responded with 404 Not Found. URL: {url}")
+            return []  # Return an empty list if no data is found
+        response.raise_for_status()
+        data = response.json()
+        return data.get('data', [])
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error fetching data from API: {e}")
+        return []  # Return an empty list if there's an error
 
 def find_close_games(games):
     return [

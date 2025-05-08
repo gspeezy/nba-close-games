@@ -52,12 +52,18 @@ def send_email(body):
         server.send_message(msg)
 
 def main():
-    games = fetch_games()
-    close_games = find_close_games(games)
-    if close_games:
-        body = "\n".join(close_games)
+    try:
+        games = fetch_games()
+        close_games = find_close_games(games)
+        if close_games:
+            body = "\n".join(close_games)
+        else:
+            body = "No close NBA games today — this is a test email to confirm delivery."
+
         send_email(body)
 
-if __name__ == "__main__":
-    main()
+    except Exception as e:
+        print(f"Error: {e}")
+        raise
+
 
